@@ -1,0 +1,3 @@
+!pip install numpy matplotlib scikit-learn
+!pip install keras
+!pip install tensorflow==2.15.1
