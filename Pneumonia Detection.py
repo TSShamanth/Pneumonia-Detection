@@ -1,69 +1,82 @@
-import tensorflow as tf
-from keras.preprocessing.image import ImageDataGenerator
-from keras.models import Sequential
-from keras.layers import Conv2D, MaxPooling2D, Flatten, Dense, Dropout
-from keras.applications import VGG16
-import pandas as pd
+# Import necessary libraries
+import streamlit as st
+import tensorflow
+from PIL import Image
+import numpy as np
+from keras.models import load_model
+import os
+os.environ['TF_CPP_MIN_LOG_LEVEL'] = '1'
 
-from google.colab import drive
-drive.mount('/content/drive')
+# Set page title
+st.title("PNEUMONIA DETECTION")
 
-IMAGE_SIZE = (224, 224)
-BATCH_SIZE = 32
-EPOCHS = 5  # Increased epochs for better training
-TRAIN_DIR = ('/content/drive/My Drive/archive/chest_xray/train')
-VAL_DIR =  ('/content/drive/My Drive/archive/chest_xray/val')
-TEST_DIR =  ('/content/drive/My Drive/archive/chest_xray/test')
+# Add a file uploader widget
+uploaded_file = st.file_uploader("Upload an image", type=["jpg", "jpeg", "png"])
 
-# Data augmentation and preprocessing
-train_datagen = ImageDataGenerator(
-    rescale=1. / 255,
-    rotation_range=15,
-    width_shift_range=0.1,
-    height_shift_range=0.1,
-    shear_range=0.2,
-    zoom_range=0.2,
-    horizontal_flip=True
-)
+# Function to load and preprocess the uploaded image
+def preprocess_image(image):
+    img = Image.open(image)
+    img = img.resize((224, 224))  # Resize image to match model's expected sizing
+    img_array = np.array(img)
+    img_array = img_array / 255.0  # Normalize pixel values
+    img_array = np.expand_dims(img_array, axis=0)  # Add batch dimension
+    return img_array
 
-val_datagen = ImageDataGenerator(rescale=1. / 255)
-test_datagen = ImageDataGenerator(rescale=1. / 255)
-train_datagen = ImageDataGenerator(rescale=1. / 255)
+# Load the trained model
+def load_trained_model():
+    model_path = r'D:\Shamanth\GenAI project\PneumoniaDetectionGenAI.h5'
+    model = load_model(model_path, compile=False)
+    return model
 
-train_generator = train_datagen.flow_from_directory(TRAIN_DIR, target_size=IMAGE_SIZE, batch_size=BATCH_SIZE,
-                                                    class_mode='binary')
-val_generator = val_datagen.flow_from_directory(VAL_DIR, target_size=IMAGE_SIZE, batch_size=BATCH_SIZE,
-                                                class_mode='binary')
-test_generator = test_datagen.flow_from_directory(TEST_DIR, target_size=IMAGE_SIZE, batch_size=BATCH_SIZE,
-                                                  class_mode='binary')
+model = load_trained_model()
 
-# Build the CNN model with transfer learning
-base_model = VGG16(weights='imagenet', include_top=False, input_shape=(224, 224, 3))
-base_model.trainable = False  # Freeze pre-trained layers
+# Define the optimizer with desired parameters
+optimizer = tensorflow.keras.optimizers.Adam(learning_rate=0.001, decay=1e-5)
 
-model = Sequential([
-    base_model,
-    Flatten(),
-    Dense(256, activation='relu'),
-    Dropout(0.5),
-    Dense(1, activation='sigmoid')
-])
+# Compile the model with the defined optimizer
+model.compile(optimizer=optimizer,
+              loss='binary_crossentropy',
+              metrics=['accuracy'])
 
-model.compile(optimizer='adam', loss='binary_crossentropy', metrics=['accuracy'])
+# Function to make prediction
+def make_prediction(image):
+    prediction = model.predict(image)
+    if prediction[0][0] > 0.5:
+        return "Pneumonia Detected"
+    else:
+        return "Normal"
 
-# Train the model
-history = model.fit(train_generator, epochs=EPOCHS, validation_data=val_generator)
+# Display uploaded image and prediction result
+if uploaded_file is not None:
+    st.image(uploaded_file, caption='Uploaded Image', use_column_width=True)
+    st.write("")
+    st.write("Classifying...")
 
-# Evaluate the model on test data
-test_loss, test_acc = model.evaluate(test_generator)
-print(f"Test accuracy: {test_acc}")
+    # Preprocess image and make prediction
+    img_array = preprocess_image(uploaded_file)
+    prediction = make_prediction(img_array)
 
-# Plot training history
-import matplotlib.pyplot as plt
+    # Display prediction result
+    st.success(f"Prediction: {prediction}")
 
-plt.plot(history.history['accuracy'], label='accuracy')
-plt.plot(history.history['val_accuracy'], label='val_accuracy')
-plt.xlabel('Epoch')
-plt.ylabel('Accuracy')
-plt.legend()
-plt.show()
+# Add predict button
+predict_button = st.button("Predict")
+
+# Handle predict button click
+if predict_button and uploaded_file is not None:
+    # Load and preprocess the uploaded image
+    img = Image.open(uploaded_file)
+    img = img.resize((None,224, 224))
+    img_array = np.asarray(img)
+    img_array = np.expand_dims(img_array, axis=0)
+    img_array /= 255.
+
+    # Predict the result
+    prediction = model.predict(img_array)
+    prediction_prob = prediction[0][0]
+
+    # Display the prediction result
+    if prediction_prob > 0.5:
+        st.write("This is an image of PNEUMONIA")
+    else:
+        st.write("This is an image of NORMAL LUNG")
