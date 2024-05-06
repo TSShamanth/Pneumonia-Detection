@@ -1,7 +1,5 @@
 import streamlit as st
-from PIL import Image
 import tensorflow as tf
-import numpy as np
 from keras.models import load_model
 import requests
 
@@ -12,22 +10,22 @@ os.environ['TF_CPP_MIN_LOG_LEVEL'] = '1'
 # Set page title
 st.title("PNEUMONIA DETECTION")
 
-# Function to load and preprocess the uploaded image
-def preprocess_image(image):
-    img = Image.open(image)
-    img = img.resize((224, 224))  # Resize image to match model's expected sizing
-    img_array = np.array(img)
-    img_array = img_array / 255.0  # Normalize pixel values
-    img_array = np.expand_dims(img_array, axis=0)  # Add batch dimension
-    return img_array
+# Function to preprocess the image URL
+def preprocess_image(image_url):
+    img_response = requests.get(image_url)
+    img_data = img_response.content
+    return img_data
 
-# Load the trained model
+# Load the trained model from GitHub
+#@st.cache(allow_output_mutation=True)
 def load_trained_model():
-    model_path = "https://github.com/TSShamanth/Pneumonia-Detection/blob/main/PneumoniaDetectionGenAI.h5"
+    st.write("Loading model...")
+    model_path = "https://github.com/TSShamanth/Pneumonia-Detection/raw/main/PneumoniaDetectionGenAI.h5"
     model_data = requests.get(model_path).content
     with open('PneumoniaDetectionGenAI.h5', 'wb') as f:
         f.write(model_data)
     model = load_model('PneumoniaDetectionGenAI.h5', compile=False)
+    st.write("Model loaded successfully.")
     return model
 
 # Define the optimizer with desired parameters
@@ -39,8 +37,11 @@ def define_optimizer(model):
     return model
 
 # Function to make prediction
-def make_prediction(model, image):
-    prediction = model.predict(image)
+def make_prediction(model, image_data):
+    img_array = tf.image.decode_image(image_data, channels=3)
+    img_array = tf.image.resize(img_array, [224, 224]) / 255.0
+    img_array = tf.expand_dims(img_array, axis=0)
+    prediction = model.predict(img_array)
     if prediction[0][0] > 0.5:
         return "Pneumonia Detected"
     else:
@@ -61,10 +62,10 @@ if menu == "Home":
     if st.button("Predict", key=predict_button_key):
         if uploaded_file is not None:
             st.write("Classifying...")
-            img_array = preprocess_image(uploaded_file)
+            img_data = uploaded_file.read()
             model = load_trained_model()
             model = define_optimizer(model)
-            prediction = make_prediction(model, img_array)
+            prediction = make_prediction(model, img_data)
             st.success(f"Prediction: {prediction}")
         else:
             st.error("NO IMAGE FOUND")
@@ -72,32 +73,27 @@ elif menu == "Example":
     st.write("Sample Output And Difference In Lung X-ray")
 
     # Add clickable images for classification
-    pneumonia_image_url = r"C:\Users\goodb\Downloads\image_25.png"
-    normal_image_url = r"C:\Users\goodb\Downloads\image_21.png"
+    pneumonia_image_url = "https://github.com/TSShamanth/Pneumonia-Detection/raw/main/PreprocessedImages/image_25.png"
+    normal_image_url = "https://github.com/TSShamanth/Pneumonia-Detection/raw/main/PreprocessedImages/image_21.png"
 
     # Load the trained model
     model = load_trained_model()
     model = define_optimizer(model)
 
-    # Arrange images and captions in columns
+    # Display images and classify on button click
     col1, col2 = st.columns(2)
-
     with col1:
-        pneumonia_img = Image.open(requests.get(pneumonia_image_url, stream=True).raw)
-        st.image(pneumonia_img, use_column_width=True)
-        pneumonia_button_key = "pneumonia_button"
-        if st.button("Click to Classify Pneumonia", key=pneumonia_button_key):
-            img_array = preprocess_image(pneumonia_image_url)
-            prediction = make_prediction(model, img_array)
+        st.image(pneumonia_image_url, caption="Pneumonia Image", use_column_width=True)
+        if st.button("Classify Pneumonia"):
+            img_data = preprocess_image(pneumonia_image_url)
+            prediction = make_prediction(model, img_data)
             st.success(f"Prediction: {prediction}")
 
     with col2:
-        normal_img = Image.open(requests.get(normal_image_url, stream=True).raw)
-        st.image(normal_img, use_column_width=True)
-        normal_button_key = "normal_button"
-        if st.button("Click to Classify Normal", key=normal_button_key):
-            img_array = preprocess_image(normal_image_url)
-            prediction = make_prediction(model, img_array)
+        st.image(normal_image_url, caption="Normal Image", use_column_width=True)
+        if st.button("Classify Normal"):
+            img_data = preprocess_image(normal_image_url)
+            prediction = make_prediction(model, img_data)
             st.success(f"Prediction: {prediction}")
 
 elif menu == "GitHub":
