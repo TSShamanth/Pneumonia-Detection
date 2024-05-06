@@ -1,10 +1,9 @@
-# Import necessary libraries
 import streamlit as st
 from PIL import Image
-import tensorflow
+import tensorflow as tf
 import numpy as np
 from keras.models import load_model
-import os
+import requests
 
 # Set TensorFlow log level to suppress unnecessary messages
 import os
@@ -22,16 +21,18 @@ def preprocess_image(image):
     img_array = np.expand_dims(img_array, axis=0)  # Add batch dimension
     return img_array
 
-
 # Load the trained model
 def load_trained_model():
-    model_path = r'D:\Shamanth\GenAI project\PneumoniaDetectionGenAI.h5'
-    model = load_model(model_path, compile=False)
+    model_path = "https://github.com/TSShamanth/Pneumonia-Detection/blob/main/PneumoniaDetectionGenAI.h5"
+    model_data = requests.get(model_path).content
+    with open('PneumoniaDetectionGenAI.h5', 'wb') as f:
+        f.write(model_data)
+    model = load_model('PneumoniaDetectionGenAI.h5', compile=False)
     return model
 
 # Define the optimizer with desired parameters
 def define_optimizer(model):
-    optimizer = tensorflow.keras.optimizers.Adam(learning_rate=0.001, decay=1e-5)
+    optimizer = tf.keras.optimizers.Adam(learning_rate=0.001, decay=1e-5)
     model.compile(optimizer=optimizer,
                   loss='binary_crossentropy',
                   metrics=['accuracy'])
@@ -54,20 +55,25 @@ if menu == "Home":
 
     uploaded_file = st.file_uploader("Upload an image", type=["jpg", "jpeg", "png"])
 
-    if st.button("Predict") and uploaded_file is not None:
-        st.write("Classifying...")
-        img_array = preprocess_image(uploaded_file)
-        model = load_trained_model()
-        model = define_optimizer(model)
-        prediction = make_prediction(model, img_array)
-        st.success(f"Prediction: {prediction}")
+    # Assign a unique key to the st.button widget
+    predict_button_key = "predict_button"
 
+    if st.button("Predict", key=predict_button_key):
+        if uploaded_file is not None:
+            st.write("Classifying...")
+            img_array = preprocess_image(uploaded_file)
+            model = load_trained_model()
+            model = define_optimizer(model)
+            prediction = make_prediction(model, img_array)
+            st.success(f"Prediction: {prediction}")
+        else:
+            st.error("NO IMAGE FOUND")
 elif menu == "Example":
     st.write("Sample Output And Difference In Lung X-ray")
 
     # Add clickable images for classification
-    pneumonia_image_path = r"C:\Users\goodb\Downloads\image_25.png"
-    normal_image_path = r"C:\Users\goodb\Downloads\image_21.png"
+    pneumonia_image_url = r"C:\Users\goodb\Downloads\image_25.png"
+    normal_image_url = r"C:\Users\goodb\Downloads\image_21.png"
 
     # Load the trained model
     model = load_trained_model()
@@ -77,24 +83,22 @@ elif menu == "Example":
     col1, col2 = st.columns(2)
 
     with col1:
-        pneumonia_img = Image.open(pneumonia_image_path)
+        pneumonia_img = Image.open(requests.get(pneumonia_image_url, stream=True).raw)
         st.image(pneumonia_img, use_column_width=True)
         pneumonia_button_key = "pneumonia_button"
-        if st.button("Click to Classify", key=pneumonia_button_key):
-            img_array = preprocess_image(pneumonia_image_path)
+        if st.button("Click to Classify Pneumonia", key=pneumonia_button_key):
+            img_array = preprocess_image(pneumonia_image_url)
             prediction = make_prediction(model, img_array)
             st.success(f"Prediction: {prediction}")
 
     with col2:
-        normal_img = Image.open(normal_image_path)
+        normal_img = Image.open(requests.get(normal_image_url, stream=True).raw)
         st.image(normal_img, use_column_width=True)
         normal_button_key = "normal_button"
-        if st.button("Click to Classify", key=normal_button_key):
-            img_array = preprocess_image(normal_image_path)
+        if st.button("Click to Classify Normal", key=normal_button_key):
+            img_array = preprocess_image(normal_image_url)
             prediction = make_prediction(model, img_array)
             st.success(f"Prediction: {prediction}")
-
-
 
 elif menu == "GitHub":
     st.title("GitHub Repository")
