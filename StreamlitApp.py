@@ -105,4 +105,6 @@ elif menu == "GitHub":
     # Add button to redirect to GitHub repository
     github_url = "https://github.com/TSShamanth/Pneumonia-Detection"
     if st.button("Go to GitHub"):
-        st.markdown(f"Go to [GitHub Repository]({github_url})")
+        js = f"window.open('{github_url}', '_blank')"
+        html = f"<html><head><script>{js}</script></head><body></body></html>"
+        st.components.v1.html(html)
