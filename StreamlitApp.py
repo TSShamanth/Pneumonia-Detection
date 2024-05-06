@@ -1,17 +1,17 @@
 # Import necessary libraries
 import streamlit as st
-import tensorflow
 from PIL import Image
+import tensorflow
 import numpy as np
 from keras.models import load_model
+import os
+
+# Set TensorFlow log level to suppress unnecessary messages
 import os
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '1'
 
 # Set page title
 st.title("PNEUMONIA DETECTION")
-
-# Add a file uploader widget
-uploaded_file = st.file_uploader("Upload an image", type=["jpg", "jpeg", "png"])
 
 # Function to load and preprocess the uploaded image
 def preprocess_image(image):
@@ -22,61 +22,89 @@ def preprocess_image(image):
     img_array = np.expand_dims(img_array, axis=0)  # Add batch dimension
     return img_array
 
+
 # Load the trained model
 def load_trained_model():
     model_path = r'D:\Shamanth\GenAI project\PneumoniaDetectionGenAI.h5'
     model = load_model(model_path, compile=False)
     return model
 
-model = load_trained_model()
-
 # Define the optimizer with desired parameters
-optimizer = tensorflow.keras.optimizers.Adam(learning_rate=0.001, decay=1e-5)
-
-# Compile the model with the defined optimizer
-model.compile(optimizer=optimizer,
-              loss='binary_crossentropy',
-              metrics=['accuracy'])
+def define_optimizer(model):
+    optimizer = tensorflow.keras.optimizers.Adam(learning_rate=0.001, decay=1e-5)
+    model.compile(optimizer=optimizer,
+                  loss='binary_crossentropy',
+                  metrics=['accuracy'])
+    return model
 
 # Function to make prediction
-def make_prediction(image):
+def make_prediction(model, image):
     prediction = model.predict(image)
     if prediction[0][0] > 0.5:
         return "Pneumonia Detected"
     else:
         return "Normal"
 
-# Display uploaded image and prediction result
-if uploaded_file is not None:
-    st.image(uploaded_file, caption='Uploaded Image', use_column_width=True)
-    st.write("")
-    st.write("Classifying...")
+# Add menu bar with "Home", "Example", and "GitHub" options
+menu = st.sidebar.selectbox("Menu", ["Home", "Example", "GitHub"])
 
-    # Preprocess image and make prediction
-    img_array = preprocess_image(uploaded_file)
-    prediction = make_prediction(img_array)
+# Handle menu selection
+if menu == "Home":
+    st.write("Welcome to Pneumonia Detection App!")
 
-    # Display prediction result
-    st.success(f"Prediction: {prediction}")
+    uploaded_file = st.file_uploader("Upload an image", type=["jpg", "jpeg", "png"])
 
-# Add predict button
-predict_button = st.button("Predict")
+    if st.button("Predict") and uploaded_file is not None:
+        st.write("Classifying...")
+        img_array = preprocess_image(uploaded_file)
+        model = load_trained_model()
+        model = define_optimizer(model)
+        prediction = make_prediction(model, img_array)
+        st.success(f"Prediction: {prediction}")
 
-# Handle predict button click
-if predict_button and uploaded_file is not None:
-    # Load and preprocess the uploaded image
-    img = Image.open(uploaded_file)
-    img = img.resize((None,224, 224))
-    img_array = np.asarray(img)
-    img_array = np.expand_dims(img_array, axis=0)
-    img_array /= 255.
+elif menu == "Example":
+    st.write("Sample Output And Difference In Lung X-ray")
 
-    # Predict the result
-    prediction = model.predict(img_array)
-    prediction_prob = prediction[0][0]
+    # Add clickable images for classification
+    pneumonia_image_path = r"C:\Users\goodb\Downloads\image_25.png"
+    normal_image_path = r"C:\Users\goodb\Downloads\image_21.png"
 
-    # Display the prediction result
-    if prediction_prob > 0.5:
-        st.write("This is an image of PNEUMONIA")
-    else:
-        st.write("This is an image of NORMAL LUNG")
+    # Load the trained model
+    model = load_trained_model()
+    model = define_optimizer(model)
+
+    # Arrange images and captions in columns
+    col1, col2 = st.columns(2)
+
+    with col1:
+        pneumonia_img = Image.open(pneumonia_image_path)
+        st.image(pneumonia_img, use_column_width=True)
+        pneumonia_button_key = "pneumonia_button"
+        if st.button("Click to Classify", key=pneumonia_button_key):
+            img_array = preprocess_image(pneumonia_image_path)
+            prediction = make_prediction(model, img_array)
+            st.success(f"Prediction: {prediction}")
+
+    with col2:
+        normal_img = Image.open(normal_image_path)
+        st.image(normal_img, use_column_width=True)
+        normal_button_key = "normal_button"
+        if st.button("Click to Classify", key=normal_button_key):
+            img_array = preprocess_image(normal_image_path)
+            prediction = make_prediction(model, img_array)
+            st.success(f"Prediction: {prediction}")
+
+
+
+elif menu == "GitHub":
+    st.title("GitHub Repository")
+    st.write("This Streamlit application is for Pneumonia Detection")
+    st.write("It includes features like uploading an image for prediction.")
+    st.write("Click the button below to visit the GitHub repository.")
+
+    # Add button to redirect to GitHub repository
+    github_url = "https://github.com/TSShamanth/Pneumonia-Detection"
+    if st.button("Go to GitHub"):
+        js = f"window.open('{github_url}', '_blank')"
+        html = f"<html><head><script>{js}</script></head><body></body></html>"
+        st.components.v1.html(html)
