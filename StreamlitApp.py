@@ -99,13 +99,11 @@ elif menu == "Example":
 
 elif menu == "GitHub":
     st.title("GitHub Repository")
-    st.write("This Streamlit application is for Pneumonia Detection")
+    st.write("This Streamlit application is for Pneumonia Detection.")
     st.write("It includes features like uploading an image for prediction.")
     st.write("Click the button below to visit the GitHub repository.")
 
     # Add button to redirect to GitHub repository
     github_url = "https://github.com/TSShamanth/Pneumonia-Detection"
     if st.button("Go to GitHub"):
-        js = f"window.open('{github_url}', '_blank')"
-        html = f"<html><head><script>{js}</script></head><body></body></html>"
-        st.components.v1.html(html)
+        st.markdown(f"[GitHub Repository]({github_url})")
