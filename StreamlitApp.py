@@ -20,7 +20,7 @@ def preprocess_image(image_url):
 #@st.cache(allow_output_mutation=True)
 def load_trained_model():
     st.write("Loading model...")
-    model_path = "https://github.com/Ajay2k4/Pneumonia-Detection/blob/main/PneumoniaDetectionGenAI.h5"
+    model_path = "https://github.com/Ajay2k4/Pneumonia-Detection/raw/main/PneumoniaDetectionGenAI.h5"
     model_data = requests.get(model_path).content
     with open('PneumoniaDetectionGenAI.h5', 'wb') as f:
         f.write(model_data)
